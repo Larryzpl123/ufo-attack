@@ -253,7 +253,7 @@ while running:
             ufo_hspeed = random.uniform(UFO_SPEED_MIN, UFO_SPEED_MAX)
             ufo_x = max(UFO_EDGE_OFFSET, min(WIDTH - 70 - UFO_EDGE_OFFSET, ufo_x))
 
-        if ufo_y <= UFO_VERTICAL_EDGE or ufo_y + 50 >= UFO_MAX_Y + UFO_VERTICAL_EDGE:
+        if ufo_y <= UFO_VERTICAL_EDGE or ufo_y + 50 >= UFO_MAX_Y  + UFO_VERTICAL_EDGE:
             ufo_vy *= -1
             ufo_vy = random.uniform(UFO_VSPEED_MIN, UFO_VSPEED_MAX) * (1 if ufo_vy > 0 else -1)
             ufo_y = max(UFO_VERTICAL_EDGE, min(HEIGHT - 50 - UFO_VERTICAL_EDGE, ufo_y))
