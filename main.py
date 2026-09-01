@@ -50,10 +50,14 @@ UFO_VERTICAL_EDGE = 30
 
 UFO_BULLET_SPEED = 5
 UFO_ROCKET_SPEED = 20
-UFO_BLADE_SPEED_MIN = 8
-UFO_BLADE_SPEED_MAX = 32
+UFO_BLADE_SPEED_MIN = 4
+UFO_BLADE_SPEED_MAX = 8
 UFO_BLADE_ANGLE_MIN = 225
 UFO_BLADE_ANGLE_MAX = 315
+BLADE_SIZE = 48            # sprite is drawn at this size
+BLADE_HITBOX = 24          # collision box, centred inside the sprite (75%),
+BLADE_INSET = (BLADE_SIZE - BLADE_HITBOX) // 2   # because the sprite spins
+BLADE_SPIN = 0.6           # degrees per frame, per unit of blade speed
 
 MAX_DIFFICULTY = 35
 DIFFICULTY_INTERVAL = 90
@@ -82,7 +86,7 @@ try:
     rocket_img = pygame.image.load("assets/ufo_rocket.png").convert_alpha()
     rocket_img = pygame.transform.scale(rocket_img, (12, 30))
     blade_img = pygame.image.load("assets/ufo_blade.png").convert_alpha()
-    blade_img = pygame.transform.scale(blade_img, (16, 16))
+    blade_img = pygame.transform.scale(blade_img, (BLADE_SIZE, BLADE_SIZE))
 except pygame.error:
     player_img = ufo_img = bullet_img = ufo_bullet_img = rocket_img = blade_img = None
 
@@ -132,7 +136,10 @@ def lengthdir_x(length, angle_deg):
     return length * math.cos(math.radians(angle_deg))
 
 def lengthdir_y(length, angle_deg):
-    return length * math.sin(math.radians(angle_deg))
+    # GameMaker's y axis points down while its angles run counter-clockwise,
+    # so lengthdir_y is NEGATIVE sine. Without the minus sign the UFO blades
+    # fly upward and can never hit the player.
+    return -length * math.sin(math.radians(angle_deg))
 
 def random_range(a, b):
     return random.uniform(a, b)
@@ -286,9 +293,10 @@ while running:
             speed = random_range(UFO_BLADE_SPEED_MIN, UFO_BLADE_SPEED_MAX)
             vx = lengthdir_x(speed, angle)
             vy = lengthdir_y(speed, angle)
-            bx = ufo_x + 35 - 8
+            bx = ufo_x + 35 - BLADE_SIZE // 2
             by = ufo_y + 50
-            ufo_blades.append([bx, by, vx, vy])
+            # [x, y, vx, vy, rotation, spin] - faster blades spin faster
+            ufo_blades.append([bx, by, vx, vy, 0.0, speed * BLADE_SPIN])
             countdown = random_int(80, 120) - difficulty
             ufo_alarm2 = max(10, countdown)
 
@@ -319,6 +327,7 @@ while running:
         for b in ufo_blades[:]:
             b[0] += b[2]
             b[1] += b[3]
+            b[4] = (b[4] + b[5]) % 360
             if b[1] > HEIGHT or b[0] < 0 or b[0] > WIDTH:
                 ufo_blades.remove(b)
 
@@ -357,7 +366,9 @@ while running:
                     break
         if not game_over:
             for b in ufo_blades[:]:
-                if pygame.Rect(b[0], b[1], 16, 16).colliderect(player_rect):
+                blade_rect = pygame.Rect(b[0] + BLADE_INSET, b[1] + BLADE_INSET,
+                                         BLADE_HITBOX, BLADE_HITBOX)
+                if blade_rect.colliderect(player_rect):
                     game_over = True
                     break
 
@@ -408,10 +419,16 @@ while running:
             pygame.draw.rect(screen, (255, 150, 0), (r[0], r[1], 12, 30))
 
     for b in ufo_blades:
+        cx = b[0] + BLADE_SIZE / 2
+        cy = b[1] + BLADE_SIZE / 2
         if blade_img:
-            screen.blit(blade_img, (b[0], b[1]))
+            spun = pygame.transform.rotate(blade_img, b[4])
+            screen.blit(spun, spun.get_rect(center=(cx, cy)).topleft)
         else:
-            pts = [(b[0]+8, b[1]), (b[0], b[1]+16), (b[0]+16, b[1]+16)]
+            r = BLADE_SIZE / 2
+            pts = [(cx + r * math.cos(math.radians(b[4] + k * 120 - 90)),
+                    cy + r * math.sin(math.radians(b[4] + k * 120 - 90)))
+                   for k in range(3)]
             pygame.draw.polygon(screen, (200, 200, 255), pts)
 
     for p in powerups:

@@ -48,8 +48,12 @@ const PLAYER_SPEED=10, BULLET_SPEED=20, PLAYER_SHOOT_COOLDOWN=10;
 const UFO_SPEED_MIN=2.5, UFO_SPEED_MAX=10, UFO_EDGE_OFFSET=20;
 const UFO_VSPEED_MIN=0.5, UFO_VSPEED_MAX=2.0, UFO_VERTICAL_EDGE=30;
 const UFO_BULLET_SPEED=5, UFO_ROCKET_SPEED=20;
-const UFO_BLADE_SPEED_MIN=8, UFO_BLADE_SPEED_MAX=32;
+const UFO_BLADE_SPEED_MIN=4, UFO_BLADE_SPEED_MAX=16;
 const UFO_BLADE_ANGLE_MIN=225, UFO_BLADE_ANGLE_MAX=315;
+const BLADE_SIZE=32;                              // sprite draw size
+const BLADE_HITBOX=24;                            // collision box, 75% of sprite
+const BLADE_INSET=(BLADE_SIZE-BLADE_HITBOX)/2;    // centred, because it spins
+const BLADE_SPIN=0.6;                             // deg/frame per unit of speed
 const MAX_DIFFICULTY=35, DIFFICULTY_INTERVAL=90, HIT_SCORE=100;
 const DOUBLE_SHOT_DURATION=10*FPS;
 const POWERUP_SPEED=2, POWERUP_DROP_CHANCE=10;
@@ -179,7 +183,10 @@ function step(){
     if(--a2<=0){
       const angle=rnd(UFO_BLADE_ANGLE_MIN,UFO_BLADE_ANGLE_MAX);
       const speed=rnd(UFO_BLADE_SPEED_MIN,UFO_BLADE_SPEED_MAX);
-      ufoBlades.push([ufoX+35-8, ufoY+50, lengthdirX(speed,angle), lengthdirY(speed,angle)]);
+      // [x, y, vx, vy, rotation, spin] - faster blades spin faster
+      ufoBlades.push([ufoX+35-BLADE_SIZE/2, ufoY+50,
+                      lengthdirX(speed,angle), lengthdirY(speed,angle),
+                      0, speed*BLADE_SPIN]);
       a2=Math.max(10, rndInt(80,120)-difficulty);
     }
     if(--a3<=0){
@@ -196,6 +203,7 @@ function step(){
       }
     };
     move(playerBullets); move(ufoBullets); move(ufoRockets); move(ufoBlades);
+    for(const b of ufoBlades) b[4]=(b[4]+b[5])%360;
 
     for(let i=powerups.length-1;i>=0;i--){
       powerups[i][1]+=POWERUP_SPEED;
@@ -217,7 +225,8 @@ function step(){
 
     for(const b of ufoBullets) if(hit(R(b[0],b[1],10,20),playerRect)){ gameOver=true; break; }
     if(!gameOver) for(const r of ufoRockets) if(hit(R(r[0],r[1],12,30),playerRect)){ gameOver=true; break; }
-    if(!gameOver) for(const b of ufoBlades)  if(hit(R(b[0],b[1],16,16),playerRect)){ gameOver=true; break; }
+    if(!gameOver) for(const b of ufoBlades)
+      if(hit(R(b[0]+BLADE_INSET,b[1]+BLADE_INSET,BLADE_HITBOX,BLADE_HITBOX),playerRect)){ gameOver=true; break; }
     if(!gameOver && hit(ufoRect,playerRect)) gameOver=true;
 
     for(let i=powerups.length-1;i>=0;i--){
@@ -257,12 +266,18 @@ function draw(){
     else { ctx.fillStyle="rgb(255,150,0)"; ctx.fillRect(r[0],r[1],12,30); }
   }
   for(const b of ufoBlades){
-    if(ok(bladeImg)) ctx.drawImage(bladeImg,b[0],b[1],16,16);
+    const cx=b[0]+BLADE_SIZE/2, cy=b[1]+BLADE_SIZE/2, r=BLADE_SIZE/2;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(-b[4]*Math.PI/180);
+    if(ok(bladeImg)) ctx.drawImage(bladeImg,-r,-r,BLADE_SIZE,BLADE_SIZE);
     else {
       ctx.fillStyle="rgb(200,200,255)"; ctx.beginPath();
-      ctx.moveTo(b[0]+8,b[1]); ctx.lineTo(b[0],b[1]+16); ctx.lineTo(b[0]+16,b[1]+16);
+      for(let k=0;k<3;k++){
+        const a=(k*120-90)*Math.PI/180;
+        k?ctx.lineTo(r*Math.cos(a),r*Math.sin(a)):ctx.moveTo(r*Math.cos(a),r*Math.sin(a));
+      }
       ctx.closePath(); ctx.fill();
     }
+    ctx.restore();
   }
   for(const p of powerups){
     ctx.fillStyle=GREEN;  ctx.beginPath(); ctx.arc(p[0]|0,p[1]|0,15,0,7); ctx.fill();
