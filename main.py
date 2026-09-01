@@ -55,7 +55,7 @@ UFO_BLADE_SPEED_MAX = 8
 UFO_BLADE_ANGLE_MIN = 225
 UFO_BLADE_ANGLE_MAX = 315
 BLADE_SIZE = 48            # sprite is drawn at this size
-BLADE_HITBOX = 24          # collision box, centred inside the sprite (75%),
+BLADE_HITBOX = 36          # collision box, centred inside the sprite (75%),
 BLADE_INSET = (BLADE_SIZE - BLADE_HITBOX) // 2   # because the sprite spins
 BLADE_SPIN = 0.6           # degrees per frame, per unit of blade speed
 
